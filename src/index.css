@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #0a0d0a;
+    color: #fbbf24;
+    font-family: 'Share Tech Mono', 'Chakra Petch', monospace, sans-serif;
+    user-select: none;
+    overflow-x: hidden;
+  }
+}
+
+/* Retro Arcade Font Classes */
+.font-arcade {
+  font-family: 'Press Start 2P', cursive, monospace;
+}
+
+.font-terminal {
+  font-family: 'VT323', monospace;
+}
+
+.font-tech {
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* Custom Arcade Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d120d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a3826;
+  border-radius: 3px;
+  border: 1px solid #f59e0b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #f59e0b;
+}
+
+/* Arcade Cabinet Bevel Frame */
+.arcade-bezel {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.8),
+    0 8px 24px rgba(0, 0, 0, 0.9);
+}
+
+/* CRT Scanline Keyframes */
+@keyframes scanlines {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 100%;
+  }
+}

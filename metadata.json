@@ -1,0 +1,5 @@
+{
+  "name": "MuJoCo Arcade Robot Control Panel",
+  "description": "Tactical robot control panel with custom URDF 3D visualization, dual joysticks, height adjustment, dynamic function matrix, and real-time MQTT-over-WebSocket transmission.",
+  "requestFramePermissions": []
+}
