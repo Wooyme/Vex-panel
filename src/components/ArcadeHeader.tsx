@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  Bot, 
-  Wifi, 
-  WifiOff, 
-  Volume2, 
-  VolumeX, 
-  Terminal, 
+import {
+  Bot,
+  Wifi,
+  WifiOff,
+  Volume2,
+  VolumeX,
+  Terminal,
   Activity,
   Zap,
   Radio
@@ -40,23 +40,23 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
   const frequencies = [10, 20, 50, 100];
 
   return (
-    <header className="w-full bg-[#121611] border-b-2 border-[#f59e0b]/50 px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-[0_4px_12px_rgba(0,0,0,0.8)] select-none">
+    <header className="w-full bg-[#ffffff] border-b-2 border-[#dc2626]/50 px-3 py-2 flex flex-wrap items-center justify-between gap-2 select-none">
       {/* Brand Title with Pixel Glow */}
       <div className="flex items-center gap-2.5">
-        <div className="p-1.5 bg-[#f59e0b] text-[#121611] border border-[#fef08a] shadow-[0_0_10px_rgba(245,158,11,0.5)]">
+        <div className="p-1.5 bg-[#dc2626] text-[#ffffff] border border-[#991b1b]">
           <Bot className="w-5 h-5 stroke-[2.5]" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-mono text-sm sm:text-base font-black tracking-wider text-[#fbbf24] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-              MUJOCO ROBOTICS // ARCADE SIM
+            <h1 className="font-mono text-sm sm:text-base font-black tracking-wider text-[#b91c1c] uppercase">
+              Vex Panel
             </h1>
-            <span className="hidden sm:inline-block px-1.5 py-0.2 text-[9px] font-mono font-bold bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/50">
-              WASM-v3
+            <span className="hidden sm:inline-block px-1.5 py-0.2 text-[9px] font-mono font-bold bg-[#ef4444]/20 text-[#dc2626] border border-[#ef4444]/50">
+              URDF LIVE
             </span>
           </div>
-          <p className="font-mono text-[10px] text-[#86efac]/80 hidden md:block">
-            REAL-TIME QUADRUPED ROBOT SIMULATION & MQTT-WS TELEMETRY
+          <p className="font-mono text-[10px] text-[#4b5563]/80 hidden md:block">
+            MULTI-ROBOT URDF SCENE & MQTT-WS MOTION STREAMING
           </p>
         </div>
       </div>
@@ -70,11 +70,11 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
             playArcadeClick(600);
             onOpenMqttLogs();
           }}
-          className={`flex items-center gap-1.5 px-2 py-1 border transition-all ${
+          className={`flex items-center gap-1.5 px-2 py-1 border ${
             mqttStatus === 'connected'
-              ? 'bg-[#22c55e]/15 text-[#4ade80] border-[#22c55e]/60 shadow-[0_0_8px_rgba(34,197,94,0.3)] hover:bg-[#22c55e]/25'
+              ? 'bg-[#ef4444]/15 text-[#dc2626] border-[#ef4444]/60 hover:bg-[#ef4444]/25'
               : mqttStatus === 'connecting'
-              ? 'bg-[#f59e0b]/15 text-[#fbbf24] border-[#f59e0b]/60 animate-pulse'
+              ? 'bg-[#dc2626]/15 text-[#b91c1c] border-[#dc2626]/60 animate-pulse'
               : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/60'
           }`}
           title="Click to view MQTT Stream"
@@ -95,8 +95,8 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
         </button>
 
         {/* TX Frequency Selector */}
-        <div className="hidden lg:flex items-center gap-1 bg-[#1c241a] px-2 py-0.5 border border-[#263024]">
-          <span className="text-[10px] text-[#fbbf24]/70">FREQ:</span>
+        <div className="hidden lg:flex items-center gap-1 bg-[#f3f4f6] px-2 py-0.5 border border-[#d1d5db]">
+          <span className="text-[10px] text-[#b91c1c]/70">FREQ:</span>
           {frequencies.map((freq) => (
             <button
               key={freq}
@@ -107,8 +107,8 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
               }}
               className={`px-1.5 py-0.5 text-[9px] font-bold ${
                 publishFrequencyHz === freq
-                  ? 'bg-[#f59e0b] text-[#121611]'
-                  : 'text-[#fbbf24]/70 hover:text-[#fbbf24]'
+                  ? 'bg-[#dc2626] text-[#ffffff]'
+                  : 'text-[#b91c1c]/70 hover:text-[#b91c1c]'
               }`}
             >
               {freq}Hz
@@ -117,14 +117,14 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
         </div>
 
         {/* Battery Indicator */}
-        <div className="flex items-center gap-1 px-2 py-1 bg-[#1c241a] text-[#86efac] border border-[#22c55e]/30 text-[11px]">
-          <Zap className="w-3 h-3 text-[#f59e0b]" />
+        <div className="flex items-center gap-1 px-2 py-1 bg-[#f3f4f6] text-[#4b5563] border border-[#ef4444]/30 text-[11px]">
+          <Zap className="w-3 h-3 text-[#dc2626]" />
           <span>{batteryPercent.toFixed(0)}%</span>
         </div>
 
         {/* FPS Counter */}
-        <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-[#1c241a] text-[#fbbf24] border border-[#f59e0b]/30 text-[11px]">
-          <Activity className="w-3 h-3 text-[#22c55e]" />
+        <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-[#f3f4f6] text-[#b91c1c] border border-[#dc2626]/30 text-[11px]">
+          <Activity className="w-3 h-3 text-[#ef4444]" />
           <span>{fps} FPS</span>
         </div>
       </div>
@@ -138,10 +138,10 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
             playArcadeClick(600);
             onToggleSound();
           }}
-          className={`p-1.5 border transition-colors ${
+          className={`p-1.5 border ${
             soundEnabled
-              ? 'bg-[#f59e0b]/20 text-[#fbbf24] border-[#f59e0b]/60'
-              : 'bg-[#1c241a] text-[#fbbf24]/40 border-[#263024]'
+              ? 'bg-[#dc2626]/20 text-[#b91c1c] border-[#dc2626]/60'
+              : 'bg-[#f3f4f6] text-[#b91c1c]/40 border-[#d1d5db]'
           }`}
           title={soundEnabled ? 'Mute 8-bit Audio' : 'Enable 8-bit Audio'}
         >
@@ -155,7 +155,7 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
             playArcadeClick(500);
             onOpenMqttLogs();
           }}
-          className="flex items-center gap-1 px-2 py-1.5 bg-[#1c241a] hover:bg-[#263024] text-[#fbbf24] border border-[#f59e0b]/40 text-xs font-mono"
+          className="flex items-center gap-1 px-2 py-1.5 bg-[#f3f4f6] hover:bg-[#d1d5db] text-[#b91c1c] border border-[#dc2626]/40 text-xs font-mono"
           title="Open MQTT Telemetry Inspector"
         >
           <Terminal className="w-3.5 h-3.5" />

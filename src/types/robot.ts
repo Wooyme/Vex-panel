@@ -1,38 +1,13 @@
-export type GaitMode = 'WALK' | 'TROT' | 'CRAWL' | 'RUN' | 'JUMP' | 'DANCE';
+export type PolicyType = 'full_body' | 'lower_body' | 'upper_body';
 
-export type PostureState = 'STAND' | 'CROUCH' | 'REST' | 'BALANCE';
+export type PolicyInput = 'vx' | 'vy' | 'yaw' | 'pitch' | 'height';
 
-export type ActionFunctionId = 
-  | 'WALK' 
-  | 'TROT' 
-  | 'CRAWL' 
-  | 'RUN' 
-  | 'JUMP' 
-  | 'DANCE' 
-  | 'STAND' 
-  | 'CROUCH' 
-  | 'REST' 
-  | 'BALANCE'
-  | 'GREET'
-  | 'BOW'
-  | 'LOOK_AROUND'
-  | 'BACKFLIP'
-  | 'PATROL'
-  | 'AUTO_NAV'
-  | 'STAIRS_MODE'
-  | 'SELF_CHECK';
-
-export interface RobotFunctionItem {
-  id: ActionFunctionId | string;
+export interface RobotPolicy {
   name: string;
-  labelZh: string;
-  category: 'LOCOMOTION 行走' | 'POSTURE 姿态' | 'ACTION 特技动作' | 'AUTONOMOUS 智能导航';
-  type: 'gait' | 'posture' | 'action' | 'mode';
-  description: string;
-  defaultActive?: boolean;
+  type: PolicyType;
+  inputs: PolicyInput[];
 }
 
-export type CameraMode = 'CHASE' | 'ORBIT' | 'TOP_DOWN' | 'FIRST_PERSON';
 
 export interface RobotControlState {
   vx: number;          // Forward / Backward velocity (-1.0 to 1.0)
@@ -40,14 +15,8 @@ export interface RobotControlState {
   yaw: number;         // Turning angular velocity (-1.0 to 1.0)
   pitch: number;       // Camera / Body Pitch trim (-1.0 to 1.0)
   height: number;      // Body height from ground (0.20 to 0.75 meters)
-  gait: GaitMode;
-  posture: PostureState;
-  activeAction?: string | null;
-  torqueEnabled: boolean;
-  headlight: boolean;
-  autoLevel: boolean;
+  policy: string[];
   estop: boolean;
-  speedMultiplier: number; // 0.5x, 1.0x, 1.5x, 2.0x
 }
 
 export interface RobotTelemetry {
@@ -79,11 +48,7 @@ export interface MqttControlPacket {
     yaw: number;
     pitch: number;
     height: number;
-    gait: GaitMode;
-    posture: PostureState;
-    torque: boolean;
-    headlight: boolean;
-    autoLevel: boolean;
+    policy: string[];
     estop: boolean;
   };
 }
@@ -95,3 +60,43 @@ export interface MqttPacketLog {
   timestamp: number;
   payload: string;
 }
+
+export type RobotAppearancePreset =
+  | 'original'
+  | 'red_translucent'
+  | 'green_translucent'
+  | 'blue_translucent'
+  | 'purple_translucent';
+
+export interface RobotInstanceConfig {
+  id: string;
+  name: string;
+  urdfPath: string;
+  motionTopic: string;
+  fallbackMotionTopic?: string;
+  forceFallbackBasePose?: boolean;
+  appearancePreset: RobotAppearancePreset;
+}
+
+export type RobotMotionStatus = 'waiting' | 'live' | 'error';
+
+export interface RobotInstanceRuntimeState {
+  status: RobotMotionStatus;
+  message?: string;
+}
+
+export interface RobotMotionMessage {
+  timestamp: number;
+  simulation_time: number;
+  joint_names: string[];
+  joint_values: number[];
+  base_xyz: [number, number, number];
+  base_quat_wxyz: [number, number, number, number];
+}
+
+export type MqttTopicHandler = (topic: string, payload: string) => void;
+
+export type SubscribeMqttTopic = (
+  topic: string,
+  handler: MqttTopicHandler,
+) => () => void;

@@ -40,15 +40,16 @@ export const HeightSlider: React.FC<HeightSliderProps> = ({
   return (
     <div
       id="height-slider-card"
-      className="flex flex-col items-center justify-between p-2 bg-[#141a13] border-2 border-[#22c55e]/50 shadow-[0_0_10px_rgba(34,197,94,0.2)] select-none h-full"
+      aria-disabled={disabled}
+      className={`flex flex-col items-center justify-between p-2 bg-[#ffffff] border-2 border-[#ef4444]/50 select-none h-full ${disabled ? 'opacity-55' : ''}`}
     >
       {/* Header */}
-      <div className="w-full flex items-center justify-between border-b border-[#263024] pb-1 mb-1">
+      <div className="w-full flex items-center justify-between border-b border-[#d1d5db] pb-1 mb-1">
         <div>
-          <h3 className="font-mono text-[11px] font-bold tracking-wider text-[#86efac]">CHASSIS HEIGHT</h3>
-          <p className="font-mono text-[9px] text-[#4ade80]/70">身 高 控 制</p>
+          <h3 className="font-mono text-[11px] font-bold tracking-wider text-[#4b5563]">CHASSIS HEIGHT</h3>
+          <p className="font-mono text-[9px] text-[#dc2626]/70">身 高 控 制</p>
         </div>
-        <div className="font-mono text-[10px] font-bold text-[#86efac] bg-[#22c55e]/20 border border-[#22c55e]/50 px-1.5 py-0.2">
+        <div className="font-mono text-[10px] font-bold text-[#4b5563] bg-[#ef4444]/20 border border-[#ef4444]/50 px-1.5 py-0.2">
           {heightValue.toFixed(2)}m
         </div>
       </div>
@@ -66,8 +67,9 @@ export const HeightSlider: React.FC<HeightSliderProps> = ({
             <button
               key={p.label}
               id={`preset-${p.label.toLowerCase()}-btn`}
+              disabled={disabled}
               onClick={() => handlePreset(p.val)}
-              className="px-1.5 py-1 text-[9px] font-mono font-bold bg-[#1c241a] hover:bg-[#263024] text-[#86efac] border border-[#22c55e]/40 active:bg-[#22c55e] active:text-[#141a13]"
+              className="px-1.5 py-1 text-[9px] font-mono font-bold bg-[#f3f4f6] hover:bg-[#d1d5db] text-[#4b5563] border border-[#ef4444]/40 active:bg-[#ef4444] active:text-[#ffffff] disabled:cursor-not-allowed disabled:hover:bg-[#f3f4f6]"
             >
               {p.label}
             </button>
@@ -85,24 +87,24 @@ export const HeightSlider: React.FC<HeightSliderProps> = ({
           onPointerMove={(e) => {
             if (e.buttons === 1) handlePointer(e);
           }}
-          className="relative w-10 h-28 bg-[#0a0e0a] border-2 border-[#263024] shadow-[inset_0_3px_8px_rgba(0,0,0,0.9)] cursor-pointer flex justify-center touch-none py-1"
+          className={`relative w-10 h-28 bg-[#f9fafb] border-2 border-[#d1d5db] flex justify-center touch-none py-1 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         >
           {/* Center Slot Channel */}
-          <div className="w-1.5 h-full bg-[#141a13] border border-[#22c55e]/20" />
+          <div className="w-1.5 h-full bg-[#ffffff] border border-[#ef4444]/20" />
 
           {/* Notch Gauge Marks */}
           {[0.25, 0.5, 0.75].map((lvl) => (
             <div
               key={lvl}
               style={{ bottom: `${lvl * 100}%` }}
-              className="absolute left-1 right-1 h-[1px] bg-[#22c55e]/30 pointer-events-none"
+              className="absolute left-1 right-1 h-[1px] bg-[#ef4444]/30 pointer-events-none"
             />
           ))}
 
           {/* Active Level Glow Bar */}
           <div
             style={{ height: `${normalized * 100}%` }}
-            className="absolute bottom-1 w-1.5 bg-gradient-to-t from-[#16a34a] to-[#4ade80] shadow-[0_0_6px_rgba(74,222,128,0.5)] pointer-events-none"
+            className="absolute bottom-1 w-1.5 bg-[#dc2626] pointer-events-none"
           />
 
           {/* Slider Knob */}
@@ -111,20 +113,20 @@ export const HeightSlider: React.FC<HeightSliderProps> = ({
             style={{
               bottom: `calc(${normalized * 100}% - 8px)`,
             }}
-            className="absolute w-9 h-4 bg-gradient-to-b from-[#4ade80] via-[#22c55e] to-[#15803d] border-2 border-[#bbf7d0] shadow-[0_2px_4px_rgba(0,0,0,0.8)] flex items-center justify-center pointer-events-none"
+            className="absolute w-9 h-4 bg-[#dc2626] border-2 border-[#991b1b] flex items-center justify-center pointer-events-none"
           >
             <div className="flex gap-0.5">
-              <div className="w-0.5 h-2 bg-[#0d120d]/60" />
-              <div className="w-0.5 h-2 bg-[#0d120d]/60" />
+              <div className="w-0.5 h-2 bg-[#f3f4f6]/60" />
+              <div className="w-0.5 h-2 bg-[#f3f4f6]/60" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Status Footer */}
-      <div className="w-full flex items-center justify-between text-[9px] font-mono text-[#86efac]/80 pt-0.5 border-t border-[#263024]">
+      <div className="w-full flex items-center justify-between text-[9px] font-mono text-[#4b5563]/80 pt-0.5 border-t border-[#d1d5db]">
         <span>CLEARANCE:</span>
-        <span className="font-bold text-[#fef08a]">
+        <span className="font-bold text-[#111827]">
           {heightValue < 0.3 ? 'LOW' : heightValue > 0.6 ? 'HIGH' : 'NORM'}
         </span>
       </div>

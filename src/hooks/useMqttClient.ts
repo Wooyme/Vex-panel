@@ -1,7 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mqtt, { MqttClient } from 'mqtt';
-import { RobotControlState, MqttPacketLog, RobotTelemetry, RobotFunctionItem } from '../types/robot';
-import { DEFAULT_SUPPORTED_FUNCTIONS } from '../data/supportedFunctions';
+import {
+  RobotControlState,
+  MqttPacketLog,
+  RobotTelemetry,
+  RobotPolicy,
+  MqttTopicHandler,
+} from '../types/robot';
+import { TopicSubscriptionRegistry } from '../utils/topicSubscriptionRegistry';
+import {
+  effectiveControlState,
+  parsePolicyList,
+  POLICY_LIST_TOPIC,
+} from '../utils/policy';
 
 interface UseMqttOptions {
   brokerUrl?: string;
@@ -23,24 +34,28 @@ export function useMqttClient({
   const [currentTxRate, setCurrentTxRate] = useState(0);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [logs, setLogs] = useState<MqttPacketLog[]>([]);
-  const [supportedFunctions, setSupportedFunctions] = useState<RobotFunctionItem[]>(DEFAULT_SUPPORTED_FUNCTIONS);
+  const [policies, setPolicies] = useState<RobotPolicy[]>([]);
+  const [hasReceivedPolicyList, setHasReceivedPolicyList] = useState(false);
 
   const clientRef = useRef<MqttClient | null>(null);
   const seqRef = useRef<number>(0);
   const txCountSinceLastSec = useRef<number>(0);
+  const packetsReceivedRef = useRef<number>(0);
+  const topicRegistryRef = useRef(new TopicSubscriptionRegistry());
+  const pendingUnsubscribeRef = useRef(new Map<string, number>());
+  const lastDynamicLogAtRef = useRef(new Map<string, number>());
   const controlStateRef = useRef<RobotControlState>(controlState);
+  const policiesRef = useRef<RobotPolicy[]>(policies);
   controlStateRef.current = controlState;
+  policiesRef.current = policies;
 
   const onTelemetryRef = useRef(onTelemetryReceived);
   onTelemetryRef.current = onTelemetryReceived;
 
-  // Resolve WebSocket MQTT URL
-  const resolvedUrl = useCallback(() => {
-    if (brokerUrl) return brokerUrl;
-    if (typeof window === 'undefined') return 'ws://localhost:3000/mqtt';
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/mqtt`;
-  }, [brokerUrl]);
+  const resolvedUrl = useCallback(
+    () => brokerUrl?.trim() || import.meta.env.VITE_MQTT_BROKER_URL?.trim() || 'ws://localhost:9001',
+    [brokerUrl],
+  );
 
   // Connect to MQTT Broker
   useEffect(() => {
@@ -49,7 +64,7 @@ export function useMqttClient({
     setErrorMessage(null);
 
     const clientId = `arcade_sim_${Math.random().toString(16).substring(2, 8)}`;
-    
+
     let client: MqttClient | null = null;
 
     try {
@@ -65,72 +80,75 @@ export function useMqttClient({
       client.on('connect', () => {
         setStatus('connected');
         setErrorMessage(null);
-        // Subscribe to robot feedback & capabilities topics
+        // Subscribe to robot feedback and the authoritative policy list.
         client?.subscribe('robot/telemetry', (err) => {
           if (err) console.warn('[MQTT] Subscribe error telemetry:', err);
         });
-        client?.subscribe('robot/capabilities', (err) => {
-          if (err) console.warn('[MQTT] Subscribe error capabilities:', err);
+        client?.subscribe(POLICY_LIST_TOPIC, (err) => {
+          if (err) console.warn('[MQTT] Subscribe error policies:', err);
         });
-        client?.subscribe('robot/supported_functions');
         client?.subscribe('robot/status');
-
-        // Announce capabilities on local loop
-        const capPayload = JSON.stringify({
-          source: 'robot_hw_daemon',
-          version: '2.4.0',
-          functions: DEFAULT_SUPPORTED_FUNCTIONS,
+        topicRegistryRef.current.topics().forEach((topic) => {
+          client?.subscribe(topic, { qos: 0 });
         });
-        client?.publish('robot/capabilities', capPayload, { retain: true, qos: 0 });
       });
 
       client.on('message', (topic, message) => {
-        setPacketsReceived((prev) => prev + 1);
-        try {
-          const raw = message.toString();
-          const parsed = JSON.parse(raw);
+        packetsReceivedRef.current += 1;
+        const raw = message.toString();
+        const isDynamicTopic = topicRegistryRef.current.has(topic);
+        topicRegistryRef.current.dispatch(topic, raw);
 
-          // Add to circular log
+        const now = Date.now();
+        const lastDynamicLogAt = lastDynamicLogAtRef.current.get(topic) ?? 0;
+        if (!isDynamicTopic || now - lastDynamicLogAt >= 500) {
+          if (isDynamicTopic) lastDynamicLogAtRef.current.set(topic, now);
           setLogs((prev) => [
             {
-              id: `${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+              id: `${now}_${Math.random().toString(36).substring(2, 6)}`,
               topic,
               direction: 'RX',
-              timestamp: Date.now(),
+              timestamp: now,
               payload: raw,
             },
             ...prev.slice(0, 49),
           ]);
+        }
 
-          if (topic === 'robot/telemetry' && onTelemetryRef.current) {
-            onTelemetryRef.current(parsed);
+        if (topic === POLICY_LIST_TOPIC) {
+          try {
+            const nextPolicies = parsePolicyList(raw);
+            policiesRef.current = nextPolicies;
+            setPolicies(nextPolicies);
+            setHasReceivedPolicyList(true);
+          } catch (error) {
+            console.warn(
+              '[MQTT] Invalid policy list:',
+              error instanceof Error ? error.message : String(error),
+            );
           }
-
-          if (topic === 'robot/capabilities' || topic === 'robot/supported_functions') {
-            if (Array.isArray(parsed)) {
-              setSupportedFunctions(parsed);
-            } else if (parsed && Array.isArray(parsed.functions)) {
-              setSupportedFunctions(parsed.functions);
-            }
+        } else if (topic === 'robot/telemetry' && onTelemetryRef.current) {
+          try {
+            onTelemetryRef.current(JSON.parse(raw));
+          } catch {
+            console.warn('[MQTT] Invalid telemetry JSON');
           }
-        } catch {
-          // non-JSON message
         }
       });
 
       client.on('error', (err) => {
         console.warn('[MQTT] Connection status note:', err?.message);
-        // In iframe or sandboxed environments, show online with local loopback telemetry
-        setStatus('connected');
+        setErrorMessage(err?.message || 'Unable to connect to MQTT broker');
+        setStatus('error');
       });
 
       client.on('offline', () => {
-        // Keep active for local simulation
-        setStatus('connected');
+        setStatus('disconnected');
       });
     } catch (err: any) {
-      console.warn('[MQTT] Fallback to internal broker stream:', err?.message);
-      setStatus('connected');
+      console.warn('[MQTT] Connection failed:', err?.message);
+      setErrorMessage(err?.message || 'Unable to connect to MQTT broker');
+      setStatus('error');
     }
 
     return () => {
@@ -144,10 +162,13 @@ export function useMqttClient({
   // Fixed Frequency TX Publisher loop
   useEffect(() => {
     const intervalMs = Math.max(10, Math.floor(1000 / publishFrequencyHz));
-    
+
     const timer = setInterval(() => {
       seqRef.current += 1;
-      const current = controlStateRef.current;
+      const current = effectiveControlState(
+        controlStateRef.current,
+        policiesRef.current,
+      );
       const packet = {
         seq: seqRef.current,
         timestamp: Date.now(),
@@ -157,22 +178,17 @@ export function useMqttClient({
           yaw: Number(current.yaw.toFixed(3)),
           pitch: Number(current.pitch.toFixed(3)),
           height: Number(current.height.toFixed(3)),
-          gait: current.gait,
-          posture: current.posture,
-          torque: current.torqueEnabled,
-          headlight: current.headlight,
-          autoLevel: current.autoLevel,
+          policy: current.policy,
           estop: current.estop,
-          speedMult: current.speedMultiplier,
         },
       };
 
       const payloadStr = JSON.stringify(packet);
 
       if (clientRef.current && clientRef.current.connected) {
-        clientRef.current.publish('robot/control', payloadStr, { qos: 0 });
+        clientRef.current.publish('robot/commands', payloadStr, { qos: 0 });
       }
-      
+
       txCountSinceLastSec.current += 1;
       setPacketsSent((prev) => prev + 1);
 
@@ -181,7 +197,7 @@ export function useMqttClient({
         setLogs((prev) => [
           {
             id: `${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-            topic: 'robot/control',
+            topic: 'robot/commands',
             direction: 'TX',
             timestamp: Date.now(),
             payload: payloadStr,
@@ -198,6 +214,7 @@ export function useMqttClient({
   useEffect(() => {
     const rateTimer = setInterval(() => {
       setCurrentTxRate(txCountSinceLastSec.current);
+      setPacketsReceived(packetsReceivedRef.current);
       txCountSinceLastSec.current = 0;
     }, 1000);
     return () => clearInterval(rateTimer);
@@ -208,6 +225,37 @@ export function useMqttClient({
       const payloadStr = typeof data === 'string' ? data : JSON.stringify(data);
       clientRef.current.publish(topic, payloadStr);
     }
+  }, []);
+
+  const subscribeTopic = useCallback((topic: string, handler: MqttTopicHandler) => {
+    const normalizedTopic = topic.trim();
+    if (!normalizedTopic) throw new Error('MQTT topic must not be empty');
+
+    const pendingUnsubscribe = pendingUnsubscribeRef.current.get(normalizedTopic);
+    if (pendingUnsubscribe !== undefined) {
+      window.clearTimeout(pendingUnsubscribe);
+      pendingUnsubscribeRef.current.delete(normalizedTopic);
+    }
+    const firstHandler = topicRegistryRef.current.add(normalizedTopic, handler);
+    if (firstHandler && pendingUnsubscribe === undefined && clientRef.current?.connected) {
+      clientRef.current.subscribe(normalizedTopic, { qos: 0 });
+    }
+
+    let active = true;
+    return () => {
+      if (!active) return;
+      active = false;
+      const lastHandler = topicRegistryRef.current.remove(normalizedTopic, handler);
+      if (!lastHandler) return;
+
+      const timer = window.setTimeout(() => {
+        pendingUnsubscribeRef.current.delete(normalizedTopic);
+        if (!topicRegistryRef.current.has(normalizedTopic) && clientRef.current?.connected) {
+          clientRef.current.unsubscribe(normalizedTopic);
+        }
+      }, 0);
+      pendingUnsubscribeRef.current.set(normalizedTopic, timer);
+    };
   }, []);
 
   const clearLogs = useCallback(() => {
@@ -222,7 +270,10 @@ export function useMqttClient({
     currentTxRate,
     latencyMs,
     logs,
-    supportedFunctions,
+    policies,
+    hasReceivedPolicyList,
+    policyListTopic: POLICY_LIST_TOPIC,
+    subscribeTopic,
     sendCustomPacket,
     clearLogs,
     brokerUrl: resolvedUrl(),

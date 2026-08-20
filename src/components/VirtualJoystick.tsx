@@ -7,9 +7,10 @@ interface VirtualJoystickProps {
   subtitle?: string;
   xValue: number;
   yValue: number;
+  xEnabled?: boolean;
+  yEnabled?: boolean;
   onChange: (x: number, y: number) => void;
   colorTheme?: 'amber' | 'green' | 'orange';
-  keyHints?: { up: string; down: string; left: string; right: string };
   size?: number;
 }
 
@@ -19,9 +20,10 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
   subtitle,
   xValue,
   yValue,
+  xEnabled = true,
+  yEnabled = true,
   onChange,
   colorTheme = 'amber',
-  keyHints,
   size = 110,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,11 +38,22 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
   useEffect(() => {
     if (!isInteracting) {
       setKnobPos({
-        x: xValue * maxTravel,
-        y: -yValue * maxTravel,
+        x: (xEnabled ? xValue : 0) * maxTravel,
+        y: -(yEnabled ? yValue : 0) * maxTravel,
       });
     }
-  }, [xValue, yValue, isInteracting, maxTravel]);
+  }, [xEnabled, xValue, yEnabled, yValue, isInteracting, maxTravel]);
+
+  useEffect(() => {
+    setKnobPos((current) => ({
+      x: xEnabled ? current.x : 0,
+      y: yEnabled ? current.y : 0,
+    }));
+    if (!xEnabled && !yEnabled) {
+      setIsInteracting(false);
+      activePointerId.current = null;
+    }
+  }, [xEnabled, yEnabled]);
 
   const updateCoordinates = useCallback(
     (clientX: number, clientY: number) => {
@@ -51,6 +64,8 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
 
       let dx = clientX - centerX;
       let dy = clientY - centerY;
+      if (!xEnabled) dx = 0;
+      if (!yEnabled) dy = 0;
 
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance > maxTravel) {
@@ -69,10 +84,11 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
         playJoystickTick();
       }
     },
-    [maxTravel, onChange]
+    [maxTravel, onChange, xEnabled, yEnabled]
   );
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (!xEnabled && !yEnabled) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     activePointerId.current = e.pointerId;
     setIsInteracting(true);
@@ -97,44 +113,39 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
 
   const themeClasses = {
     amber: {
-      border: 'border-[#f59e0b]/50',
-      glow: 'shadow-[0_0_10px_rgba(245,158,11,0.2)]',
-      puckBg: 'bg-gradient-to-br from-[#fbbf24] via-[#f59e0b] to-[#b45309]',
-      puckBorder: 'border-[#fef08a]',
-      puckGlow: 'shadow-[0_0_10px_rgba(245,158,11,0.8),inset_0_1px_2px_rgba(255,255,255,0.6)]',
-      badge: 'text-[#fbbf24] bg-[#f59e0b]/20 border-[#f59e0b]/40',
+      border: 'border-[#dc2626]/50',
+      puckBg: 'bg-[#dc2626]',
+      puckBorder: 'border-[#991b1b]',
+      badge: 'text-[#b91c1c] bg-[#dc2626]/20 border-[#dc2626]/40',
     },
     green: {
-      border: 'border-[#22c55e]/50',
-      glow: 'shadow-[0_0_10px_rgba(34,197,94,0.2)]',
-      puckBg: 'bg-gradient-to-br from-[#86efac] via-[#22c55e] to-[#15803d]',
-      puckBorder: 'border-[#bbf7d0]',
-      puckGlow: 'shadow-[0_0_10px_rgba(34,197,94,0.8),inset_0_1px_2px_rgba(255,255,255,0.6)]',
-      badge: 'text-[#4ade80] bg-[#22c55e]/20 border-[#22c55e]/40',
+      border: 'border-[#ef4444]/50',
+      puckBg: 'bg-[#ef4444]',
+      puckBorder: 'border-[#fecaca]',
+      badge: 'text-[#dc2626] bg-[#ef4444]/20 border-[#ef4444]/40',
     },
     orange: {
-      border: 'border-[#f97316]/50',
-      glow: 'shadow-[0_0_10px_rgba(249,115,22,0.2)]',
-      puckBg: 'bg-gradient-to-br from-[#fdba74] via-[#f97316] to-[#c2410c]',
-      puckBorder: 'border-[#ffedd5]',
-      puckGlow: 'shadow-[0_0_10px_rgba(249,115,22,0.8),inset_0_1px_2px_rgba(255,255,255,0.6)]',
-      badge: 'text-[#fb923c] bg-[#f97316]/20 border-[#f97316]/40',
+      border: 'border-[#b91c1c]/50',
+      puckBg: 'bg-[#b91c1c]',
+      puckBorder: 'border-[#fee2e2]',
+      badge: 'text-[#dc2626] bg-[#b91c1c]/20 border-[#b91c1c]/40',
     },
   }[colorTheme];
 
   return (
     <div
       id={`joystick-card-${id}`}
-      className={`flex flex-col items-center justify-between p-2 bg-[#141a13] border-2 ${themeClasses.border} ${themeClasses.glow} select-none h-full`}
+      aria-disabled={!xEnabled && !yEnabled}
+      className={`flex flex-col items-center justify-between p-2 bg-[#ffffff] border-2 ${themeClasses.border} select-none h-full ${!xEnabled && !yEnabled ? 'opacity-55' : ''}`}
     >
       {/* Joystick Header */}
-      <div className="w-full flex items-center justify-between border-b border-[#263024] pb-1 mb-1">
+      <div className="w-full flex items-center justify-between border-b border-[#d1d5db] pb-1 mb-1">
         <div>
-          <h3 className="font-mono text-[11px] font-bold tracking-wider text-[#fef08a]">{title}</h3>
-          {subtitle && <p className="font-mono text-[9px] text-[#fbbf24]/70">{subtitle}</p>}
+          <h3 className="font-mono text-[11px] font-bold tracking-wider text-[#111827]">{title}</h3>
+          {subtitle && <p className="font-mono text-[9px] text-[#b91c1c]/70">{subtitle}</p>}
         </div>
         <div className={`font-mono text-[10px] px-1 py-0.2 border ${themeClasses.badge}`}>
-          {xValue > 0 ? `+${xValue.toFixed(1)}` : xValue.toFixed(1)}, {yValue > 0 ? `+${yValue.toFixed(1)}` : yValue.toFixed(1)}
+          {xEnabled && xValue > 0 ? '+' : ''}{xEnabled ? xValue.toFixed(1) : '0.0'}, {yEnabled && yValue > 0 ? '+' : ''}{yEnabled ? yValue.toFixed(1) : '0.0'}
         </div>
       </div>
 
@@ -147,47 +158,36 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         style={{ width: `${size}px`, height: `${size}px` }}
-        className="relative bg-[#0a0e0a] border-2 border-[#263024] shadow-[inset_0_3px_8px_rgba(0,0,0,0.9)] flex items-center justify-center cursor-pointer touch-none active:border-[#f59e0b]/80 my-auto"
+        className={`relative bg-[#f9fafb] border-2 border-[#d1d5db] flex items-center justify-center touch-none active:border-[#dc2626]/80 my-auto ${!xEnabled && !yEnabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
       >
         {/* Crosshair Guideline Grid */}
-        <div className="absolute inset-1.5 border border-dashed border-[#263024]/60 pointer-events-none" />
-        <div className="absolute w-full h-[1px] bg-[#263024]/50 pointer-events-none" />
-        <div className="absolute h-full w-[1px] bg-[#263024]/50 pointer-events-none" />
+        <div className="absolute inset-1.5 border border-dashed border-[#d1d5db]/60 pointer-events-none" />
+        <div className="absolute w-full h-[1px] bg-[#d1d5db]/50 pointer-events-none" />
+        <div className="absolute h-full w-[1px] bg-[#d1d5db]/50 pointer-events-none" />
 
         {/* Direction Indicators */}
-        <span className="absolute top-0.5 text-[8px] font-mono text-[#fbbf24]/50">▲</span>
-        <span className="absolute bottom-0.5 text-[8px] font-mono text-[#fbbf24]/50">▼</span>
-        <span className="absolute left-1 text-[8px] font-mono text-[#fbbf24]/50">◀</span>
-        <span className="absolute right-1 text-[8px] font-mono text-[#fbbf24]/50">▶</span>
+        <span className="absolute top-0.5 text-[8px] font-mono text-[#b91c1c]/50">▲</span>
+        <span className="absolute bottom-0.5 text-[8px] font-mono text-[#b91c1c]/50">▼</span>
+        <span className="absolute left-1 text-[8px] font-mono text-[#b91c1c]/50">◀</span>
+        <span className="absolute right-1 text-[8px] font-mono text-[#b91c1c]/50">▶</span>
 
         {/* Tactical Puck Cursor (No Stem) */}
         <div
           id={`joystick-knob-${id}`}
           style={{
             transform: `translate(${knobPos.x}px, ${knobPos.y}px)`,
-            transition: isInteracting ? 'none' : 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
           }}
           className="relative pointer-events-none z-10 flex items-center justify-center"
         >
           <div
-            className={`w-8 h-8 border-2 ${themeClasses.puckBorder} ${themeClasses.puckBg} ${themeClasses.puckGlow} flex items-center justify-center`}
+            className={`w-8 h-8 border-2 ${themeClasses.puckBorder} ${themeClasses.puckBg} flex items-center justify-center`}
           >
-            <div className="w-2 h-2 bg-[#141a13] border border-[#fef08a] flex items-center justify-center">
-              <div className="w-0.5 h-0.5 bg-[#fef08a]" />
+            <div className="w-2 h-2 bg-[#ffffff] border border-[#111827] flex items-center justify-center">
+              <div className="w-0.5 h-0.5 bg-[#111827]" />
             </div>
           </div>
         </div>
       </div>
-
-      {/* Keyboard Controls Hint */}
-      {keyHints && (
-        <div className="mt-1 flex items-center justify-center gap-1 font-mono text-[8px] text-[#fbbf24]/60">
-          <span className="px-1 py-0.2 bg-[#0a0e0a] border border-[#263024] text-[#fef08a]">{keyHints.up}</span>
-          <span className="px-1 py-0.2 bg-[#0a0e0a] border border-[#263024] text-[#fef08a]">{keyHints.left}</span>
-          <span className="px-1 py-0.2 bg-[#0a0e0a] border border-[#263024] text-[#fef08a]">{keyHints.down}</span>
-          <span className="px-1 py-0.2 bg-[#0a0e0a] border border-[#263024] text-[#fef08a]">{keyHints.right}</span>
-        </div>
-      )}
     </div>
   );
 };

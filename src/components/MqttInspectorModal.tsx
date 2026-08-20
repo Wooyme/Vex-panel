@@ -48,11 +48,11 @@ export const MqttInspectorModal: React.FC<MqttInspectorModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm select-none">
-      <div className="w-full max-w-3xl bg-[#0f140f] border-2 border-[#f59e0b] shadow-[0_0_30px_rgba(245,158,11,0.35)] flex flex-col max-h-[88vh] overflow-hidden">
+      <div className="w-full max-w-3xl bg-[#ffffff] border-2 border-[#dc2626] flex flex-col max-h-[88vh] overflow-hidden">
         {/* Terminal Header */}
-        <div className="flex items-center justify-between p-3 bg-[#172016] border-b border-[#f59e0b]/50">
-          <div className="flex items-center gap-2 text-[#fbbf24]">
-            <Terminal className="w-5 h-5 text-[#f59e0b]" />
+        <div className="flex items-center justify-between p-3 bg-[#fff1f2] border-b border-[#dc2626]/50">
+          <div className="flex items-center gap-2 text-[#b91c1c]">
+            <Terminal className="w-5 h-5 text-[#dc2626]" />
             <span className="font-mono font-bold text-sm tracking-wider">MQTT-WEBSOCKET TELEMETRY STREAM</span>
           </div>
           <button
@@ -60,38 +60,38 @@ export const MqttInspectorModal: React.FC<MqttInspectorModalProps> = ({
               playArcadeClick(400);
               onClose();
             }}
-            className="p-1 text-[#fbbf24] hover:bg-[#263524] transition-colors"
+            className="p-1 text-[#b91c1c] hover:bg-[#fee2e2]"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Stats Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-[#111710] border-b border-[#263024] text-xs font-mono">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-[#f9fafb] border-b border-[#d1d5db] text-xs font-mono">
           <div className="flex flex-col">
-            <span className="text-[#86efac]/70 text-[10px]">BROKER ENDPOINT</span>
-            <span className="text-[#86efac] truncate font-bold">{brokerUrl}</span>
+            <span className="text-[#4b5563]/70 text-[10px]">BROKER ENDPOINT</span>
+            <span className="text-[#4b5563] truncate font-bold">{brokerUrl}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[#fbbf24]/70 text-[10px]">CONNECTION</span>
-            <span className={`font-bold ${mqttStatus === 'connected' ? 'text-[#4ade80]' : 'text-[#ef4444]'}`}>
+            <span className="text-[#b91c1c]/70 text-[10px]">CONNECTION</span>
+            <span className={`font-bold ${mqttStatus === 'connected' ? 'text-[#dc2626]' : 'text-[#ef4444]'}`}>
               {mqttStatus.toUpperCase()}
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[#f97316]/70 text-[10px]">TX RATE / TOTAL</span>
-            <span className="text-[#fb923c] font-bold">{currentTxRate} Hz ({packetsSent} pkts)</span>
+            <span className="text-[#b91c1c]/70 text-[10px]">TX RATE / TOTAL</span>
+            <span className="text-[#dc2626] font-bold">{currentTxRate} Hz ({packetsSent} pkts)</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[#fef08a]/70 text-[10px]">RX TOTAL</span>
-            <span className="text-[#fef08a] font-bold">{packetsReceived} pkts</span>
+            <span className="text-[#111827]/70 text-[10px]">RX TOTAL</span>
+            <span className="text-[#111827] font-bold">{packetsReceived} pkts</span>
           </div>
         </div>
 
         {/* Filter Bar */}
-        <div className="flex items-center justify-between p-2 bg-[#141a13] border-b border-[#263024] text-xs font-mono">
+        <div className="flex items-center justify-between p-2 bg-[#ffffff] border-b border-[#d1d5db] text-xs font-mono">
           <div className="flex items-center gap-1.5">
-            <span className="text-[#fbbf24]/80 text-[11px]">FILTER:</span>
+            <span className="text-[#b91c1c]/80 text-[11px]">FILTER:</span>
             {['ALL', 'TX', 'RX', 'control', 'telemetry'].map((f) => (
               <button
                 key={f}
@@ -101,8 +101,8 @@ export const MqttInspectorModal: React.FC<MqttInspectorModalProps> = ({
                 }}
                 className={`px-2 py-0.5 text-[10px] font-bold ${
                   filterTopic === f
-                    ? 'bg-[#f59e0b] text-[#141a13]'
-                    : 'bg-[#1c241a] text-[#fbbf24] hover:bg-[#263024]'
+                    ? 'bg-[#dc2626] text-[#ffffff]'
+                    : 'bg-[#f3f4f6] text-[#b91c1c] hover:bg-[#d1d5db]'
                 }`}
               >
                 {f}
@@ -115,7 +115,7 @@ export const MqttInspectorModal: React.FC<MqttInspectorModalProps> = ({
               playArcadeClick(350);
               onClearLogs();
             }}
-            className="flex items-center gap-1 px-2 py-0.5 bg-[#1c241a] hover:bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/40 text-[10px] font-bold transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 bg-[#f3f4f6] hover:bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/40 text-[10px] font-bold"
           >
             <Trash2 className="w-3 h-3" />
             CLEAR
@@ -123,39 +123,39 @@ export const MqttInspectorModal: React.FC<MqttInspectorModalProps> = ({
         </div>
 
         {/* Packet Stream Console */}
-        <div className="flex-1 p-3 overflow-y-auto font-mono text-xs space-y-1.5 bg-[#090d09]">
+        <div className="flex-1 p-3 overflow-y-auto font-mono text-xs space-y-1.5 bg-[#f8fafc]">
           {filteredLogs.length === 0 ? (
-            <div className="text-center py-10 text-[#4ade80]/40 italic">
+            <div className="text-center py-10 text-[#dc2626]/40 italic">
               NO MQTT PACKETS BUFFERED YET. TRANSMITTING AT FIXED FREQUENCY...
             </div>
           ) : (
             filteredLogs.map((log) => (
               <div
                 key={log.id}
-                className="p-2 bg-[#111710] border border-[#22c55e]/20 hover:border-[#22c55e]/60 flex flex-col gap-1 group"
+                className="p-2 bg-[#f9fafb] border border-[#ef4444]/20 hover:border-[#ef4444]/60 flex flex-col gap-1 group"
               >
                 <div className="flex items-center justify-between text-[10px]">
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`px-1.5 py-0.2 font-bold ${
                         log.direction === 'TX'
-                          ? 'bg-[#f59e0b]/20 text-[#fbbf24] border border-[#f59e0b]/40'
-                          : 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40'
+                          ? 'bg-[#dc2626]/20 text-[#b91c1c] border border-[#dc2626]/40'
+                          : 'bg-[#ef4444]/20 text-[#dc2626] border border-[#ef4444]/40'
                       }`}
                     >
                       {log.direction}
                     </span>
-                    <span className="text-[#86efac] font-bold">{log.topic}</span>
-                    <span className="text-[#fbbf24]/50">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                    <span className="text-[#4b5563] font-bold">{log.topic}</span>
+                    <span className="text-[#b91c1c]/50">{new Date(log.timestamp).toLocaleTimeString()}</span>
                   </div>
                   <button
                     onClick={() => copyToClipboard(JSON.stringify(log.payload, null, 2), log.id)}
-                    className="opacity-0 group-hover:opacity-100 px-1.5 py-0.5 text-[9px] bg-[#1c241a] text-[#fbbf24] border border-[#263024] hover:border-[#f59e0b]"
+                    className="opacity-0 group-hover:opacity-100 px-1.5 py-0.5 text-[9px] bg-[#f3f4f6] text-[#b91c1c] border border-[#d1d5db] hover:border-[#dc2626]"
                   >
                     {copiedId === log.id ? 'COPIED' : 'COPY'}
                   </button>
                 </div>
-                <pre className="text-[11px] text-[#fef08a] bg-[#0a0e0a] p-1.5 border border-[#263024] overflow-x-auto">
+                <pre className="text-[11px] text-[#111827] bg-[#f9fafb] p-1.5 border border-[#d1d5db] overflow-x-auto">
                   {typeof log.payload === 'string' ? log.payload : JSON.stringify(log.payload, null, 2)}
                 </pre>
               </div>
