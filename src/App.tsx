@@ -6,14 +6,14 @@ import {
   RobotInstanceConfig,
   RobotInstanceRuntimeState,
   RobotMotionStatus,
+  RobotPolicy,
   RobotTelemetry,
 } from './types/robot';
 import { useMqttClient } from './hooks/useMqttClient';
 import { ArcadeHeader } from './components/ArcadeHeader';
 import { ThreeCanvas } from './components/ThreeCanvas';
-import { VirtualJoystick } from './components/VirtualJoystick';
 import { PolicyButtons } from './components/PolicyButtons';
-import { HeightSlider } from './components/HeightSlider';
+import { PolicyControls } from './components/PolicyControls';
 import { MqttInspectorModal } from './components/MqttInspectorModal';
 import { PolicyConfigModal } from './components/PolicyConfigModal';
 import { UrdfSelectorModal } from './components/UrdfSelectorModal';
@@ -21,9 +21,12 @@ import { TerrainSelectorModal } from './components/TerrainSelectorModal';
 import { ModelInfo, TerrainInfo } from './api/manager';
 import { setSoundEnabled, playEstopAlarm } from './utils/audio';
 import {
-  activePolicyInputs,
+  controlStateForPolicies,
+  policyInputParameters,
   reconcileActivePolicies,
+  reconcileControlState,
   reconcileVisiblePolicies,
+  resetActivePolicyInputs,
   toggleActivePolicy,
 } from './utils/policy';
 
@@ -34,12 +37,8 @@ function modelStem(filename: string): string {
 export default function App() {
   // Master Robot Control State
   const [controlState, setControlState] = useState<RobotControlState>({
-    vx: 0,
-    vy: 0,
-    yaw: 0,
-    pitch: 0,
-    height: 0.45,
     policy: [],
+    inputs: {},
     estop: false,
   });
 
@@ -79,6 +78,7 @@ export default function App() {
 
   const [visiblePolicyNames, setVisiblePolicyNames] = useState<string[]>([]);
   const initializedPolicyVisibilityRef = useRef(false);
+  const previousPoliciesRef = useRef<RobotPolicy[]>([]);
 
   // Hook up MQTT-over-WebSocket control, telemetry, and policy-list streams.
   const {
@@ -107,48 +107,51 @@ export default function App() {
       initializedPolicyVisibilityRef.current = true;
       return reconcileVisiblePolicies(previous, policies);
     });
-    setControlState((current) => ({
-      ...current,
-      policy: reconcileActivePolicies(current.policy, policies),
-    }));
+    const previousPolicies = previousPoliciesRef.current;
+    previousPoliciesRef.current = policies;
+    setControlState((current) => reconcileControlState(current, previousPolicies, policies));
   }, [hasReceivedPolicyList, policies]);
 
   const activePolicyNames = useMemo(
     () => reconcileActivePolicies(controlState.policy, policies),
     [controlState.policy, policies],
   );
-  const acceptedInputs = useMemo(
-    () => activePolicyInputs(activePolicyNames, policies),
-    [activePolicyNames, policies],
-  );
-
-  useEffect(() => {
-    setControlState((current) => ({
-      ...current,
-      vx: acceptedInputs.has('vx') ? current.vx : 0,
-      vy: acceptedInputs.has('vy') ? current.vy : 0,
-      yaw: acceptedInputs.has('yaw') ? current.yaw : 0,
-      pitch: acceptedInputs.has('pitch') ? current.pitch : 0,
-    }));
-  }, [acceptedInputs]);
+  const activeControlSummary = useMemo(() => {
+    const byName = new Map<string, RobotPolicy>(
+      policies.map((policy) => [policy.name, policy]),
+    );
+    return activePolicyNames.flatMap((name) => {
+      const policy = byName.get(name);
+      if (!policy) return [];
+      return policyInputParameters(policy).map((parameter) => {
+        const label = activePolicyNames.length > 1
+          ? `${name}.${parameter.name}`
+          : parameter.name;
+        const value = controlState.inputs[name]?.[parameter.name] ?? parameter.default;
+        return `${label.toUpperCase()}: ${Number(value.toFixed(3))}`;
+      });
+    }).join(' | ');
+  }, [activePolicyNames, controlState.inputs, policies]);
 
   const handleTogglePolicy = useCallback((name: string) => {
-    setControlState((current) => ({
-      ...current,
-      policy: toggleActivePolicy(current.policy, name, policies),
-    }));
+    setControlState((current) => controlStateForPolicies(
+      current,
+      toggleActivePolicy(current.policy, name, policies),
+      policies,
+    ));
   }, [policies]);
 
   const handleSaveVisiblePolicies = useCallback((names: string[]) => {
     setVisiblePolicyNames(names);
     const visible = new Set(names);
-    setControlState((current) => ({
-      ...current,
-      policy: reconcileActivePolicies(
+    setControlState((current) => controlStateForPolicies(
+      current,
+      reconcileActivePolicies(
         current.policy.filter((name) => visible.has(name)),
         policies,
       ),
-    }));
+      policies,
+    ));
   }, [policies]);
 
   const handleAddRobot = useCallback((
@@ -224,24 +227,37 @@ export default function App() {
       ? 'SCENE EMPTY'
       : `${liveRobotCount}/${robotInstances.length} ROBOTS LIVE`;
 
-  // Partial update helper for control state
-  const handleUpdateControl = useCallback((partial: Partial<RobotControlState>) => {
-    setControlState((prev) => ({ ...prev, ...partial }));
-  }, []);
+  const handleUpdatePolicyInput = useCallback((
+    policyName: string,
+    parameterName: string,
+    value: number,
+  ) => {
+    setControlState((current) => {
+      if (!current.policy.includes(policyName) || !Number.isFinite(value)) return current;
+      const policy = policies.find((candidate) => candidate.name === policyName);
+      const parameter = policyInputParameters(policy?.inputs ?? [])
+        .find((candidate) => candidate.name === parameterName);
+      if (!parameter) return current;
+      const nextValue = Math.max(parameter.min, Math.min(parameter.max, value));
+      return {
+        ...current,
+        inputs: {
+          ...current.inputs,
+          [policyName]: {
+            ...current.inputs[policyName],
+            [parameterName]: nextValue,
+          },
+        },
+      };
+    });
+  }, [policies]);
 
   const handleToggleEstop = useCallback(() => {
     if (!controlState.estop) playEstopAlarm();
     setControlState((current) => current.estop
       ? { ...current, estop: false }
-      : {
-          ...current,
-          vx: 0,
-          vy: 0,
-          yaw: 0,
-          pitch: 0,
-          estop: true,
-        });
-  }, [controlState.estop]);
+      : { ...resetActivePolicyInputs(current, policies), estop: true });
+  }, [controlState.estop, policies]);
 
   // Audio Toggle
   const handleToggleSound = useCallback(() => {
@@ -303,26 +319,9 @@ export default function App() {
           </button>
         </section>
 
-        {/* BOTTOM SECTION: DIVIDED INTO 3 BLOCKS */}
-        <section id="bottom-control-deck" className="h-[210px] grid grid-cols-1 lg:grid-cols-12 gap-1.5 shrink-0">
-          {/* BLOCK 1 (LEFT / 左侧): 控制行走的虚拟摇杆 (Walking / Locomotion Joystick) */}
-          <div id="left-block-walking" className="lg:col-span-3 h-full">
-            <VirtualJoystick
-              id="walking-stick"
-              title="LOCOMOTION 行走控制"
-              subtitle="FORWARD / BACKWARD / STRAFE"
-              xValue={controlState.vx}
-              yValue={controlState.vy}
-              xEnabled={!controlState.estop && acceptedInputs.has('vx')}
-              yEnabled={!controlState.estop && acceptedInputs.has('vy')}
-              onChange={(x, y) => handleUpdateControl({ vx: x, vy: y })}
-              colorTheme="amber"
-              size={120}
-            />
-          </div>
-
-          {/* BLOCK 2 (MIDDLE / 中间): Policy activation matrix */}
-          <div id="middle-block-policies" className="lg:col-span-6 h-full">
+        {/* BOTTOM CONTROL DECK: full-width policy strip, then policy-defined controls */}
+        <section id="bottom-control-deck" className="flex h-[254px] shrink-0 flex-col gap-1.5">
+          <div id="policy-switch-panel" className="h-[82px] w-full shrink-0">
             <PolicyButtons
               policies={policies}
               visiblePolicyNames={visiblePolicyNames}
@@ -331,28 +330,13 @@ export default function App() {
               onOpenConfigModal={() => setIsPolicyConfigModalOpen(true)}
             />
           </div>
-
-          {/* BLOCK 3 (RIGHT / 右侧): 控制转向的虚拟摇杆 + 控制身高的滑块 */}
-          <div id="right-block-steering-height" className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5 h-full">
-            {/* Steering Joystick */}
-            <VirtualJoystick
-              id="steering-stick"
-              title="STEERING 转向控制"
-              subtitle="YAW / HEADING TRIM"
-              xValue={controlState.yaw}
-              yValue={controlState.pitch}
-              xEnabled={!controlState.estop && acceptedInputs.has('yaw')}
-              yEnabled={!controlState.estop && acceptedInputs.has('pitch')}
-              onChange={(yaw, pitch) => handleUpdateControl({ yaw, pitch })}
-              colorTheme="orange"
-              size={120}
-            />
-
-            {/* Height Control Slider */}
-            <HeightSlider
-              heightValue={acceptedInputs.has('height') ? controlState.height : 0}
-              onChange={(height) => handleUpdateControl({ height })}
-              disabled={controlState.estop || !acceptedInputs.has('height')}
+          <div id="policy-interaction-panel" className="min-h-0 flex-1">
+            <PolicyControls
+              policies={policies}
+              activePolicyNames={activePolicyNames}
+              values={controlState.inputs}
+              disabled={controlState.estop}
+              onChange={handleUpdatePolicyInput}
             />
           </div>
         </section>
@@ -366,8 +350,8 @@ export default function App() {
             {sceneStatusText}
           </span>
           <span className="hidden md:inline text-[#d1d5db]">|</span>
-          <span className="hidden md:inline">
-            YAW: {(acceptedInputs.has('yaw') ? controlState.yaw : 0).toFixed(2)} | VX: {(acceptedInputs.has('vx') ? controlState.vx : 0).toFixed(2)} | VY: {(acceptedInputs.has('vy') ? controlState.vy : 0).toFixed(2)} | HEIGHT: {(acceptedInputs.has('height') ? controlState.height : 0).toFixed(2)}m
+          <span className="hidden max-w-[70vw] truncate md:inline" title={activeControlSummary}>
+            {activeControlSummary || 'INPUTS: NONE'}
           </span>
         </div>
         

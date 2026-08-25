@@ -173,12 +173,8 @@ export function useMqttClient({
         seq: seqRef.current,
         timestamp: Date.now(),
         control: {
-          vx: Number(current.vx.toFixed(3)),
-          vy: Number(current.vy.toFixed(3)),
-          yaw: Number(current.yaw.toFixed(3)),
-          pitch: Number(current.pitch.toFixed(3)),
-          height: Number(current.height.toFixed(3)),
           policy: current.policy,
+          inputs: current.inputs,
           estop: current.estop,
         },
       };

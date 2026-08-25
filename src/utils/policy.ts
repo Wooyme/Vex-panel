@@ -1,5 +1,7 @@
 import {
   PolicyInput,
+  PolicyInputParameter,
+  PolicyInputValues,
   PolicyType,
   RobotControlState,
   RobotPolicy,
@@ -13,17 +15,109 @@ export const POLICY_TYPES: readonly PolicyType[] = [
   'upper_body',
 ];
 
-export const POLICY_INPUTS: readonly PolicyInput[] = [
-  'vx',
-  'vy',
-  'yaw',
-  'pitch',
-  'height',
-];
-
 const policyTypeSet = new Set<string>(POLICY_TYPES);
-const policyInputSet = new Set<string>(POLICY_INPUTS);
 const policyKeys = new Set(['name', 'type', 'inputs']);
+const parameterKeys = new Set(['name', 'min', 'max', 'default']);
+const componentKeys: Record<PolicyInput['type'], Set<string>> = {
+  joystick: new Set(['type', 'x', 'y']),
+  slider: new Set(['type', 'parameter']),
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasExactKeys(candidate: Record<string, unknown>, keys: Set<string>): boolean {
+  const candidateKeys = Object.keys(candidate);
+  return candidateKeys.length === keys.size && candidateKeys.every((key) => keys.has(key));
+}
+
+function parseInputParameter(value: unknown, path: string): PolicyInputParameter {
+  if (!isRecord(value) || !hasExactKeys(value, parameterKeys)) {
+    throw new Error(`${path} must contain exactly name, min, max, and default`);
+  }
+  if (
+    typeof value.name !== 'string' ||
+    !value.name ||
+    value.name.trim() !== value.name
+  ) {
+    throw new Error(`${path} has an invalid name`);
+  }
+  if (
+    typeof value.min !== 'number' ||
+    typeof value.max !== 'number' ||
+    typeof value.default !== 'number' ||
+    !Number.isFinite(value.min) ||
+    !Number.isFinite(value.max) ||
+    !Number.isFinite(value.default)
+  ) {
+    throw new Error(`${path} bounds and default must be finite numbers`);
+  }
+  if (value.min >= value.max) {
+    throw new Error(`${path} min must be less than max`);
+  }
+  if (value.default < value.min || value.default > value.max) {
+    throw new Error(`${path} default must be inside [min, max]`);
+  }
+  return {
+    name: value.name,
+    min: value.min,
+    max: value.max,
+    default: value.default,
+  };
+}
+
+function parsePolicyInput(value: unknown, path: string): PolicyInput {
+  if (!isRecord(value) || (value.type !== 'joystick' && value.type !== 'slider')) {
+    throw new Error(`${path} has an unsupported component type`);
+  }
+  if (!hasExactKeys(value, componentKeys[value.type])) {
+    throw new Error(`${path} contains unsupported or missing fields`);
+  }
+  if (value.type === 'joystick') {
+    const x = parseInputParameter(value.x, `${path}.x`);
+    const y = parseInputParameter(value.y, `${path}.y`);
+    if (x.name === y.name) {
+      throw new Error(`${path} joystick axes must control different parameters`);
+    }
+    return { type: 'joystick', x, y };
+  }
+  return {
+    type: 'slider',
+    parameter: parseInputParameter(value.parameter, `${path}.parameter`),
+  };
+}
+
+export function policyInputParameters(
+  policyOrInputs: RobotPolicy | PolicyInput[],
+): PolicyInputParameter[] {
+  const inputs = Array.isArray(policyOrInputs) ? policyOrInputs : policyOrInputs.inputs;
+  return inputs.flatMap((input) =>
+    input.type === 'joystick' ? [input.x, input.y] : [input.parameter],
+  );
+}
+
+export function policyInputNames(policy: RobotPolicy): string[] {
+  return policyInputParameters(policy).map((parameter) => parameter.name);
+}
+
+export function parameterValueToAxis(
+  value: number,
+  parameter: PolicyInputParameter,
+): number {
+  const axis = ((value - parameter.min) / (parameter.max - parameter.min)) * 2 - 1;
+  const boundedAxis = Math.max(-1, Math.min(1, axis));
+  return Math.abs(boundedAxis) < 1e-12 ? 0 : boundedAxis;
+}
+
+export function axisToParameterValue(
+  axis: number,
+  parameter: PolicyInputParameter,
+): number {
+  const boundedAxis = Math.max(-1, Math.min(1, axis));
+  const value = parameter.min + ((boundedAxis + 1) / 2) * (parameter.max - parameter.min);
+  return Math.max(parameter.min, Math.min(parameter.max, Number(value.toPrecision(12))));
+}
 
 export function parsePolicyList(payload: string | unknown): RobotPolicy[] {
   const value = typeof payload === 'string' ? JSON.parse(payload) : payload;
@@ -33,41 +127,42 @@ export function parsePolicyList(payload: string | unknown): RobotPolicy[] {
 
   const names = new Set<string>();
   return value.map((item, index) => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    if (!isRecord(item)) {
       throw new Error(`policy at index ${index} must be an object`);
     }
-    const candidate = item as Record<string, unknown>;
-    if (Object.keys(candidate).some((key) => !policyKeys.has(key))) {
-      throw new Error(`policy at index ${index} contains unsupported fields`);
+    if (!hasExactKeys(item, policyKeys)) {
+      throw new Error(`policy at index ${index} contains unsupported or missing fields`);
     }
     if (
-      typeof candidate.name !== 'string' ||
-      !candidate.name ||
-      candidate.name.trim() !== candidate.name
+      typeof item.name !== 'string' ||
+      !item.name ||
+      item.name.trim() !== item.name
     ) {
       throw new Error(`policy at index ${index} has an invalid name`);
     }
-    if (names.has(candidate.name)) {
-      throw new Error(`duplicate policy name: ${candidate.name}`);
+    if (names.has(item.name)) {
+      throw new Error(`duplicate policy name: ${item.name}`);
     }
-    if (typeof candidate.type !== 'string' || !policyTypeSet.has(candidate.type)) {
-      throw new Error(`policy ${candidate.name} has an invalid type`);
+    if (typeof item.type !== 'string' || !policyTypeSet.has(item.type)) {
+      throw new Error(`policy ${item.name} has an invalid type`);
     }
-    if (
-      !Array.isArray(candidate.inputs) ||
-      !candidate.inputs.every(
-        (input) => typeof input === 'string' && policyInputSet.has(input),
-      ) ||
-      new Set(candidate.inputs).size !== candidate.inputs.length
-    ) {
-      throw new Error(`policy ${candidate.name} has invalid inputs`);
+    if (!Array.isArray(item.inputs)) {
+      throw new Error(`policy ${item.name} inputs must be an array`);
     }
 
-    names.add(candidate.name);
+    const inputs = item.inputs.map((input, inputIndex) =>
+      parsePolicyInput(input, `policy ${item.name}.inputs[${inputIndex}]`),
+    );
+    const parameterNames = policyInputParameters(inputs).map((parameter) => parameter.name);
+    if (new Set(parameterNames).size !== parameterNames.length) {
+      throw new Error(`policy ${item.name} input parameter names must not contain duplicates`);
+    }
+
+    names.add(item.name);
     return {
-      name: candidate.name,
-      type: candidate.type as PolicyType,
-      inputs: [...candidate.inputs] as PolicyInput[],
+      name: item.name,
+      type: item.type as PolicyType,
+      inputs,
     };
   });
 }
@@ -127,32 +222,92 @@ export function reconcileVisiblePolicies(
   return visibleNames.filter((name) => available.has(name));
 }
 
-export function activePolicyInputs(
+export function defaultPolicyInputs(policy: RobotPolicy): Record<string, number> {
+  return Object.fromEntries(
+    policyInputParameters(policy).map((parameter) => [parameter.name, parameter.default]),
+  );
+}
+
+function inputsMatchPolicy(
+  values: Record<string, number> | undefined,
+  policy: RobotPolicy,
+): values is Record<string, number> {
+  if (!values) return false;
+  const parameters = policyInputParameters(policy);
+  const keys = Object.keys(values);
+  if (keys.length !== parameters.length) return false;
+  return parameters.every((parameter) => {
+    const value = values[parameter.name];
+    return Number.isFinite(value) && value >= parameter.min && value <= parameter.max;
+  });
+}
+
+export function controlStateForPolicies(
+  control: RobotControlState,
   activeNames: string[],
   policies: RobotPolicy[],
-): Set<PolicyInput> {
+): RobotControlState {
+  const policy = reconcileActivePolicies(activeNames, policies);
   const byName = policiesByName(policies);
-  return new Set(
-    reconcileActivePolicies(activeNames, policies).flatMap(
-      (name) => byName.get(name)?.inputs ?? [],
+  const previouslyActive = new Set(control.policy);
+  const inputs: PolicyInputValues = {};
+
+  policy.forEach((name) => {
+    const spec = byName.get(name);
+    if (!spec) return;
+    inputs[name] = previouslyActive.has(name) && inputsMatchPolicy(control.inputs[name], spec)
+      ? { ...control.inputs[name] }
+      : defaultPolicyInputs(spec);
+  });
+
+  return { ...control, policy, inputs };
+}
+
+export function resetActivePolicyInputs(
+  control: RobotControlState,
+  policies: RobotPolicy[],
+): RobotControlState {
+  const byName = policiesByName(policies);
+  const policy = reconcileActivePolicies(control.policy, policies);
+  return {
+    ...control,
+    policy,
+    inputs: Object.fromEntries(
+      policy.flatMap((name) => {
+        const spec = byName.get(name);
+        return spec ? [[name, defaultPolicyInputs(spec)]] : [];
+      }),
     ),
-  );
+  };
+}
+
+function sameInputSchema(left: RobotPolicy | undefined, right: RobotPolicy): boolean {
+  return Boolean(left) && JSON.stringify(left?.inputs) === JSON.stringify(right.inputs);
+}
+
+export function reconcileControlState(
+  control: RobotControlState,
+  previousPolicies: RobotPolicy[],
+  policies: RobotPolicy[],
+): RobotControlState {
+  const active = reconcileActivePolicies(control.policy, policies);
+  const previousByName = policiesByName(previousPolicies);
+  const nextByName = policiesByName(policies);
+  const inputs: PolicyInputValues = {};
+
+  active.forEach((name) => {
+    const spec = nextByName.get(name);
+    if (!spec) return;
+    inputs[name] = sameInputSchema(previousByName.get(name), spec) && inputsMatchPolicy(control.inputs[name], spec)
+      ? { ...control.inputs[name] }
+      : defaultPolicyInputs(spec);
+  });
+  return { ...control, policy: active, inputs };
 }
 
 export function effectiveControlState(
   control: RobotControlState,
   policies: RobotPolicy[],
 ): RobotControlState {
-  const policy = reconcileActivePolicies(control.policy, policies);
-  const inputs = activePolicyInputs(policy, policies);
-  const motionEnabled = !control.estop;
-  return {
-    ...control,
-    vx: motionEnabled && inputs.has('vx') ? control.vx : 0,
-    vy: motionEnabled && inputs.has('vy') ? control.vy : 0,
-    yaw: motionEnabled && inputs.has('yaw') ? control.yaw : 0,
-    pitch: motionEnabled && inputs.has('pitch') ? control.pitch : 0,
-    height: motionEnabled && inputs.has('height') ? control.height : 0,
-    policy,
-  };
+  return controlStateForPolicies(control, control.policy, policies);
 }

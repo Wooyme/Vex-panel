@@ -7,6 +7,7 @@ import {
   X,
 } from 'lucide-react';
 import { PolicyType, RobotPolicy } from '../types/robot';
+import { policyInputNames } from '../utils/policy';
 import { playArcadeClick, playModeSwitchTone } from '../utils/audio';
 
 interface PolicyConfigModalProps {
@@ -151,6 +152,7 @@ export const PolicyConfigModal: React.FC<PolicyConfigModalProps> = ({
         <div className="grid flex-1 grid-cols-1 gap-2 overflow-y-auto bg-[#f9fafb] p-3 sm:grid-cols-2 lg:grid-cols-3 custom-scrollbar">
           {filteredPolicies.map((policy) => {
             const visible = tempVisible.includes(policy.name);
+            const inputNames = policyInputNames(policy);
             return (
               <button
                 key={policy.name}
@@ -177,12 +179,12 @@ export const PolicyConfigModal: React.FC<PolicyConfigModalProps> = ({
                     </span>
                   </span>
                   <span className="mt-1.5 flex flex-wrap gap-1">
-                    {policy.inputs.map((input) => (
+                    {inputNames.map((input) => (
                       <span key={input} className="border border-[#dc2626]/30 bg-white px-1 py-0.5 font-mono text-[8px] text-[#b91c1c]">
                         {input}
                       </span>
                     ))}
-                    {policy.inputs.length === 0 && (
+                    {inputNames.length === 0 && (
                       <span className="font-mono text-[8px] text-[#6b7280]">NO CONTROL INPUTS</span>
                     )}
                   </span>

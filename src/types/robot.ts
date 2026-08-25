@@ -1,6 +1,25 @@
 export type PolicyType = 'full_body' | 'lower_body' | 'upper_body';
 
-export type PolicyInput = 'vx' | 'vy' | 'yaw' | 'pitch' | 'height';
+export interface PolicyInputParameter {
+  name: string;
+  min: number;
+  max: number;
+  default: number;
+}
+
+export interface JoystickPolicyInput {
+  type: 'joystick';
+  x: PolicyInputParameter;
+  y: PolicyInputParameter;
+}
+
+export interface SliderPolicyInput {
+  type: 'slider';
+  parameter: PolicyInputParameter;
+}
+
+export type PolicyInput = JoystickPolicyInput | SliderPolicyInput;
+export type PolicyInputValues = Record<string, Record<string, number>>;
 
 export interface RobotPolicy {
   name: string;
@@ -8,14 +27,9 @@ export interface RobotPolicy {
   inputs: PolicyInput[];
 }
 
-
 export interface RobotControlState {
-  vx: number;          // Forward / Backward velocity (-1.0 to 1.0)
-  vy: number;          // Left / Right strafe velocity (-1.0 to 1.0)
-  yaw: number;         // Turning angular velocity (-1.0 to 1.0)
-  pitch: number;       // Camera / Body Pitch trim (-1.0 to 1.0)
-  height: number;      // Body height from ground (0.20 to 0.75 meters)
   policy: string[];
+  inputs: PolicyInputValues;
   estop: boolean;
 }
 
@@ -39,18 +53,9 @@ export interface RobotTelemetry {
 }
 
 export interface MqttControlPacket {
-  topic: string;
   timestamp: number;
   seq: number;
-  control: {
-    vx: number;
-    vy: number;
-    yaw: number;
-    pitch: number;
-    height: number;
-    policy: string[];
-    estop: boolean;
-  };
+  control: RobotControlState;
 }
 
 export interface MqttPacketLog {
