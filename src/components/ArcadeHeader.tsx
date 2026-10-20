@@ -8,6 +8,7 @@ import {
   Terminal,
   Activity,
   Zap,
+  Crosshair,
   Radio
 } from 'lucide-react';
 import { playArcadeClick } from '../utils/audio';
@@ -24,6 +25,7 @@ interface ArcadeHeaderProps {
   onToggleSound: () => void;
   onOpenMqttLogs: () => void;
   onOpenForceControl: () => void;
+  onOpenPointControl: () => void;
 }
 
 export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
@@ -38,6 +40,7 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
   onToggleSound,
   onOpenMqttLogs,
   onOpenForceControl,
+  onOpenPointControl,
 }) => {
   const frequencies = [10, 20, 50, 100];
 
@@ -136,6 +139,10 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
         <button type="button" onClick={onOpenForceControl}
           className="flex items-center gap-1.5 border border-red-600 bg-red-50 px-3 py-1.5 text-sm font-bold text-red-700 hover:bg-red-100">
           <Zap className="h-4 w-4" />外力控制
+        </button>
+        <button type="button" onClick={onOpenPointControl}
+          className="flex items-center gap-1.5 border border-red-600 bg-red-50 px-3 py-1.5 text-sm font-bold text-red-700 hover:bg-red-100">
+          <Crosshair className="h-4 w-4" />点控制
         </button>
         {/* Audio FX Toggle */}
         <button

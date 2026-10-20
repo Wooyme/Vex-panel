@@ -19,6 +19,7 @@ import { PolicyConfigModal } from './components/PolicyConfigModal';
 import { UrdfSelectorModal } from './components/UrdfSelectorModal';
 import { TerrainSelectorModal } from './components/TerrainSelectorModal';
 import { ForceControlModal } from './components/ForceControlModal';
+import { PointControlModal } from './components/PointControlModal';
 import { ModelInfo, TerrainInfo } from './api/manager';
 import { setSoundEnabled, playEstopAlarm } from './utils/audio';
 import {
@@ -70,6 +71,7 @@ export default function App() {
   const [isUrdfModalOpen, setIsUrdfModalOpen] = useState<boolean>(false);
   const [isTerrainModalOpen, setIsTerrainModalOpen] = useState<boolean>(false);
   const [isForceModalOpen, setIsForceModalOpen] = useState(false);
+  const [isPointModalOpen, setIsPointModalOpen] = useState(false);
   const [soundActive, setSoundActive] = useState<boolean>(true);
 
   // Multi-robot URDF scene state. The scene intentionally starts empty.
@@ -96,6 +98,7 @@ export default function App() {
     clearLogs: clearMqttLogs,
     sendCustomPacket,
     publishForceBatch,
+    publishPointBatch,
     brokerUrl,
   } = useMqttClient({
     publishFrequencyHz,
@@ -284,6 +287,7 @@ export default function App() {
         onToggleSound={handleToggleSound}
         onOpenMqttLogs={() => setIsMqttModalOpen(true)}
         onOpenForceControl={() => setIsForceModalOpen(true)}
+        onOpenPointControl={() => setIsPointModalOpen(true)}
       />
 
       {/* Main Content Layout */}
@@ -377,6 +381,14 @@ export default function App() {
         estop={controlState.estop}
         brokerUrl={brokerUrl}
         publishForceBatch={publishForceBatch}
+      />
+      <PointControlModal
+        isOpen={isPointModalOpen}
+        onClose={() => setIsPointModalOpen(false)}
+        connected={mqttStatus === 'connected'}
+        estop={controlState.estop}
+        brokerUrl={brokerUrl}
+        publishPointBatch={publishPointBatch}
       />
 
       <MqttInspectorModal

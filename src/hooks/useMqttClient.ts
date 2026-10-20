@@ -9,7 +9,8 @@ import {
 } from '../types/robot';
 import { TopicSubscriptionRegistry } from '../utils/topicSubscriptionRegistry';
 import { ForceBatch } from '../utils/forces';
-import { FORCE_MQTT_OPTIONS, publishForceCommand } from '../utils/forcePublisher';
+import { PointBatch } from '../utils/points';
+import { FORCE_MQTT_OPTIONS, publishForceCommand, publishPointCommand } from '../utils/forcePublisher';
 import {
   effectiveControlState,
   parsePolicyList,
@@ -226,8 +227,7 @@ export function useMqttClient({
     }
   }, []);
 
-  const publishForceBatch = useCallback(async (topic: string, batch: ForceBatch): Promise<void> => {
-    const sent = await publishForceCommand(clientRef.current, topic, batch);
+  const logSentCommand = useCallback((sent: { topic: string; payload: string }) => {
     txCountSinceLastSec.current += 1;
     setPacketsSent((previous) => previous + 1);
     setLogs((previous) => [{
@@ -238,6 +238,14 @@ export function useMqttClient({
       payload: sent.payload,
     }, ...previous.slice(0, 49)]);
   }, []);
+
+  const publishForceBatch = useCallback(async (topic: string, batch: ForceBatch): Promise<void> => {
+    logSentCommand(await publishForceCommand(clientRef.current, topic, batch));
+  }, [logSentCommand]);
+
+  const publishPointBatch = useCallback(async (topic: string, batch: PointBatch): Promise<void> => {
+    logSentCommand(await publishPointCommand(clientRef.current, topic, batch));
+  }, [logSentCommand]);
 
   const subscribeTopic = useCallback((topic: string, handler: MqttTopicHandler) => {
     const normalizedTopic = topic.trim();
@@ -288,6 +296,7 @@ export function useMqttClient({
     subscribeTopic,
     sendCustomPacket,
     publishForceBatch,
+    publishPointBatch,
     clearLogs,
     brokerUrl: resolvedUrl(),
   };
