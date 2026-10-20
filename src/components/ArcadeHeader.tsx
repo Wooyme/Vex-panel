@@ -23,6 +23,7 @@ interface ArcadeHeaderProps {
   soundEnabled: boolean;
   onToggleSound: () => void;
   onOpenMqttLogs: () => void;
+  onOpenForceControl: () => void;
 }
 
 export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
@@ -36,6 +37,7 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
   soundEnabled,
   onToggleSound,
   onOpenMqttLogs,
+  onOpenForceControl,
 }) => {
   const frequencies = [10, 20, 50, 100];
 
@@ -131,6 +133,10 @@ export const ArcadeHeader: React.FC<ArcadeHeaderProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-1.5">
+        <button type="button" onClick={onOpenForceControl}
+          className="flex items-center gap-1.5 border border-red-600 bg-red-50 px-3 py-1.5 text-sm font-bold text-red-700 hover:bg-red-100">
+          <Zap className="h-4 w-4" />外力控制
+        </button>
         {/* Audio FX Toggle */}
         <button
           id="toggle-sound-btn"

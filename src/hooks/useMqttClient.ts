@@ -8,6 +8,8 @@ import {
   MqttTopicHandler,
 } from '../types/robot';
 import { TopicSubscriptionRegistry } from '../utils/topicSubscriptionRegistry';
+import { ForceBatch } from '../utils/forces';
+import { FORCE_MQTT_OPTIONS, publishForceCommand } from '../utils/forcePublisher';
 import {
   effectiveControlState,
   parsePolicyList,
@@ -69,6 +71,7 @@ export function useMqttClient({
 
     try {
       client = mqtt.connect(url, {
+        ...FORCE_MQTT_OPTIONS,
         clientId,
         clean: true,
         connectTimeout: 4000,
@@ -223,6 +226,19 @@ export function useMqttClient({
     }
   }, []);
 
+  const publishForceBatch = useCallback(async (topic: string, batch: ForceBatch): Promise<void> => {
+    const sent = await publishForceCommand(clientRef.current, topic, batch);
+    txCountSinceLastSec.current += 1;
+    setPacketsSent((previous) => previous + 1);
+    setLogs((previous) => [{
+      id: `force_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      topic: sent.topic,
+      direction: 'TX' as const,
+      timestamp: Date.now(),
+      payload: sent.payload,
+    }, ...previous.slice(0, 49)]);
+  }, []);
+
   const subscribeTopic = useCallback((topic: string, handler: MqttTopicHandler) => {
     const normalizedTopic = topic.trim();
     if (!normalizedTopic) throw new Error('MQTT topic must not be empty');
@@ -271,6 +287,7 @@ export function useMqttClient({
     policyListTopic: POLICY_LIST_TOPIC,
     subscribeTopic,
     sendCustomPacket,
+    publishForceBatch,
     clearLogs,
     brokerUrl: resolvedUrl(),
   };

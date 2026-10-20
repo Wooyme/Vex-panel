@@ -18,6 +18,7 @@ import { MqttInspectorModal } from './components/MqttInspectorModal';
 import { PolicyConfigModal } from './components/PolicyConfigModal';
 import { UrdfSelectorModal } from './components/UrdfSelectorModal';
 import { TerrainSelectorModal } from './components/TerrainSelectorModal';
+import { ForceControlModal } from './components/ForceControlModal';
 import { ModelInfo, TerrainInfo } from './api/manager';
 import { setSoundEnabled, playEstopAlarm } from './utils/audio';
 import {
@@ -68,6 +69,7 @@ export default function App() {
   const [isPolicyConfigModalOpen, setIsPolicyConfigModalOpen] = useState<boolean>(false);
   const [isUrdfModalOpen, setIsUrdfModalOpen] = useState<boolean>(false);
   const [isTerrainModalOpen, setIsTerrainModalOpen] = useState<boolean>(false);
+  const [isForceModalOpen, setIsForceModalOpen] = useState(false);
   const [soundActive, setSoundActive] = useState<boolean>(true);
 
   // Multi-robot URDF scene state. The scene intentionally starts empty.
@@ -93,6 +95,7 @@ export default function App() {
     subscribeTopic,
     clearLogs: clearMqttLogs,
     sendCustomPacket,
+    publishForceBatch,
     brokerUrl,
   } = useMqttClient({
     publishFrequencyHz,
@@ -280,6 +283,7 @@ export default function App() {
         soundEnabled={soundActive}
         onToggleSound={handleToggleSound}
         onOpenMqttLogs={() => setIsMqttModalOpen(true)}
+        onOpenForceControl={() => setIsForceModalOpen(true)}
       />
 
       {/* Main Content Layout */}
@@ -366,6 +370,15 @@ export default function App() {
       </footer>
 
       {/* MQTT Telemetry Stream Inspector Modal */}
+      <ForceControlModal
+        isOpen={isForceModalOpen}
+        onClose={() => setIsForceModalOpen(false)}
+        connected={mqttStatus === 'connected'}
+        estop={controlState.estop}
+        brokerUrl={brokerUrl}
+        publishForceBatch={publishForceBatch}
+      />
+
       <MqttInspectorModal
         isOpen={isMqttModalOpen}
         onClose={() => setIsMqttModalOpen(false)}

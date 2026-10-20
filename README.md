@@ -129,6 +129,53 @@ The viewport applies the newest valid frame immediately without interpolation or
 Editing an instance topic switches its MQTT subscription immediately; removing an instance
 also removes its subscription.
 
+## Send external forces to MuJoCo
+
+Open **外力控制** in the header to edit and send a batch of forces. The compact
+non-modal panel starts in the bottom-right corner: drag its title bar to reposition
+it, or collapse it to just the title bar. The main viewport remains interactive.
+Select a force chip to edit that row; all rows are still sent together. Topic and
+JSON are under **发送设置与 JSON**. This tool uses
+the panel's existing browser MQTT connection and requires no model backend or loaded
+URDF. Start the simulator with a force subscription on the same broker:
+
+```bash
+cd ../sim
+uv run g1-run-sim \
+  --mqtt-broker mqtt://localhost:1883 \
+  --mqtt-force-topic robot/g1/mujoco/force
+```
+
+Optionally append `--mqtt-topic robot/g1/mujoco/state --mqtt-frequency 50` for motion
+visualization. The browser defaults to `ws://localhost:9001`; configure
+`VITE_MQTT_BROKER_URL` for another broker's WebSocket endpoint. HTTPS pages require a
+`wss://` endpoint. Both ports must connect to the same broker.
+
+Each force specifies a MuJoCo body name (for example `torso_link` or `pelvis`), a
+nonzero world-coordinate XYZ direction, magnitude in newtons, and duration in
+**simulation seconds**. The simulator normalizes directions and applies forces at
+body centers of mass. Body names are checked by the simulator, not inferred from
+the panel's URDF scene.
+
+Add or remove rows, use the six axis shortcuts, or type arbitrary XYZ directions.
+The Z-up preview shows equal-length colored arrows at a shared origin, independent
+of force magnitude and robot pose. Selecting a row or legend highlights its arrow;
+drag to orbit, scroll/pinch to zoom, or reset the view. Invalid direction drafts are
+omitted from the preview. Closing or collapsing the panel preserves drafts until page reload.
+
+**整批发送** publishes one `{"forces":[{"body_name":"torso_link","direction":[1,0,0],
+"magnitude":50,"duration":0.5}]}` message to the editable topic, using QoS 0 and
+`retain: false`. All rows must be valid. Sending is disabled while disconnected,
+while a send is pending, or while panel emergency stop is active. The MQTT inspector
+records successful outgoing batches. “已发送” means sent by the client, not confirmed
+execution by the simulator; there is no execution acknowledgement in this protocol.
+
+Repeated sends **add** forces, including forces on the same body. Removing a row,
+closing the dialog, or engaging the panel emergency stop does not cancel an already
+sent force. Forces expire on simulation time, so pausing simulation also pauses their
+duration. The shared MQTT connection disables offline QoS 0 queuing; reconnecting
+never automatically resends a force. Send again manually only when intended.
+
 ## Verification
 
 ```bash
